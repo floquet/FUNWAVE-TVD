@@ -234,13 +234,10 @@ SUBROUTINE READ_INPUT
 # endif
       IF(DEPTH_TYPE(1:3)=='DAT')THEN
         CALL READ_STRING(DEPTH_FILE,FILE_NAME,'DEPTH_FILE',ierr)
-        CALL READ_STRING(DepthFormat,FILE_NAME,'DepthFormat',ierr)
 # if defined (PARALLEL)
       if (myid.eq.0) WRITE(3,'(A12,A50)')'DEPTH_FILE:', DEPTH_FILE
-      if (myid.eq.0) WRITE(3,'(A14,A50)')'DEPTH_FORMAT:', DEPTHFORMAT
 # else
       WRITE(3,'(A12,A50)')'DEPTH_FILE:', DEPTH_FILE
-      WRITE(3,'(A14,A50)')'DEPTH_FORMAT:', DEPTHFORMAT
 # endif
       ENDIF
       IF(DEPTH_TYPE(1:3)=='FLA')THEN
@@ -586,6 +583,8 @@ SUBROUTINE READ_INPUT
           Per_Ser(J)=1.0_SP/Per_Ser(J)
          ENDIF
 # if defined (INTEL)
+          Phase_Ser(J)=rand()*2.0_SP*3.1415926
+# elif defined (CRAY)
           Phase_Ser(J)=rand()*2.0_SP*3.1415926
 # else
           Phase_Ser(J)=rand(0)*2.0_SP*3.1415926
@@ -976,6 +975,7 @@ END SUBROUTINE READ_INPUT
 !-------------------------------------------------------------------------------------
 SUBROUTINE STATIONS
      USE GLOBAL
+     USE INPUT_READ
      IMPLICIT NONE
 
      INTEGER :: iunit
@@ -994,6 +994,21 @@ SUBROUTINE STATIONS
                 jsta(NumberStations),&
                 nsta(NumberStations))
 ! calculate how many output components
+
+! check existing
+
+ INQUIRE(FILE=TRIM(STATIONS_FILE),EXIST=FILE_EXIST)
+  IF(.NOT.FILE_EXIST)THEN
+# if defined (PARALLEL)
+   IF(MYID==0)  &
+   WRITE(*,*) TRIM(STATIONS_FILE), ' THE STATION FILE CANNOT BE FOUND. STOP'
+   CALL MPI_FINALIZE (ier)
+   STOP
+# else
+    WRITE(*,*) TRIM(STATIONS_FILE), ' THE STATION FILE CANNOT BE FOUND. STOP'
+    STOP
+# endif
+  ENDIF  ! exist
               
        open(100,FILE=TRIM(STATIONS_FILE))
        do i=1,NumberStations
